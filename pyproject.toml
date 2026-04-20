@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "md2imscp"
+version = "0.1.0"
+description = "Build IMS Content Packaging zips from Markdown via Pandoc AST."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+md2imscp = "md2imscp.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["md2imscp", "md2imscp.*"]
+
+[tool.setuptools.package-data]
+md2imscp = ["resources/*.xsd"]
