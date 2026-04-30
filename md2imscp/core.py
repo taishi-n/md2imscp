@@ -5,6 +5,7 @@ import hashlib
 import html
 import importlib.resources
 import json
+import random
 import re
 import subprocess
 import tempfile
@@ -205,6 +206,7 @@ RAW_HTML_ATTR_RE = re.compile(
     re.IGNORECASE,
 )
 CLOZE_RE = re.compile(r"\[\[(.+?)\]\]")
+HORIZONTAL_RULE_RE = re.compile(r"^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$")
 
 
 class Md2ImscpError(Exception):
@@ -552,23 +554,58 @@ def build_package(
     stem: str | None = None,
     asset_root: Path | None = None,
     run_validation: bool = False,
+    shuffle_items: bool = False,
+    item_limit: int | None = None,
+    shuffle_seed: int | None = None,
+    horizontal_rule_item_type: str | None = None,
+    generated_markdown_out: Path | None = None,
 ) -> Path:
     input_path = input_path.resolve()
     output_path = output_path.resolve()
+    if item_limit is not None and item_limit <= 0:
+        raise UsageError("item_limit must be a positive integer")
+    if generated_markdown_out is not None and horizontal_rule_item_type is None:
+        raise UsageError("generated_markdown_out requires horizontal_rule_item_type")
     if not input_path.exists():
         raise UsageError(f"input file not found: {input_path}")
     if not input_path.is_file():
         raise UsageError(f"input is not a file: {input_path}")
 
-    pandoc_doc = run_pandoc_json(input_path)
+    pandoc_path = input_path
+    source_path = input_path
+    if horizontal_rule_item_type is not None:
+        generated_markdown = convert_horizontal_rule_source(
+            input_path.read_text(encoding="utf-8"),
+            item_type=horizontal_rule_item_type,
+            shuffle_items=shuffle_items,
+            item_limit=item_limit,
+            shuffle_seed=shuffle_seed,
+        )
+        if generated_markdown_out is not None:
+            generated_markdown_out = generated_markdown_out.resolve()
+            generated_markdown_out.parent.mkdir(parents=True, exist_ok=True)
+            generated_markdown_out.write_text(generated_markdown, encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_input_path = Path(temp_dir_name) / input_path.name
+            temp_input_path.write_text(generated_markdown, encoding="utf-8")
+            pandoc_doc = run_pandoc_json(temp_input_path)
+        shuffle_items = False
+        item_limit = None
+        shuffle_seed = None
+    else:
+        pandoc_doc = run_pandoc_json(pandoc_path)
+
     meta = parse_meta_map(pandoc_doc["meta"])
     resolved_stem = sanitize_stem(stem or stringify_scalar(meta.get("stem")) or output_path.stem)
     assessment = build_assessment_model(
-        source_path=input_path,
+        source_path=source_path,
         meta=meta,
         blocks=pandoc_doc["blocks"],
         stem=resolved_stem,
         asset_root=asset_root,
+        shuffle_items=shuffle_items,
+        item_limit=item_limit,
+        shuffle_seed=shuffle_seed,
     )
     package_files = build_package_files(assessment)
 
@@ -579,6 +616,86 @@ def build_package(
         validate_package(output_path)
 
     return output_path
+
+
+def convert_horizontal_rule_source(
+    markdown_text: str,
+    *,
+    item_type: str,
+    shuffle_items: bool,
+    item_limit: int | None,
+    shuffle_seed: int | None,
+) -> str:
+    front_matter, body = split_front_matter(markdown_text)
+    preamble_lines, item_blocks = split_horizontal_rule_items(body)
+    if not item_blocks:
+        raise InputValidationError("horizontal-rule mode requires at least one item block")
+
+    normalized_items = [normalize_horizontal_rule_item(item_block) for item_block in item_blocks]
+    if shuffle_items:
+        rng = random.Random(shuffle_seed)
+        rng.shuffle(normalized_items)
+    if item_limit is not None:
+        normalized_items = normalized_items[:item_limit]
+    if not normalized_items:
+        raise InputValidationError("item selection produced no items")
+
+    parts: list[str] = []
+    if front_matter:
+        parts.append(front_matter.strip())
+    preamble_text = "\n".join(preamble_lines).strip()
+    if preamble_text:
+        parts.append(preamble_text)
+    for index, item_text in enumerate(normalized_items, start=1):
+        parts.append(f'### 問題 {index} {{type="{item_type}"}}')
+        parts.append(item_text)
+    return "\n\n".join(parts).rstrip() + "\n"
+
+
+def split_front_matter(markdown_text: str) -> tuple[str, str]:
+    if not markdown_text.startswith("---\n"):
+        return "", markdown_text
+    marker_end = markdown_text.find("\n---\n", 4)
+    if marker_end == -1:
+        return "", markdown_text
+    front_matter = markdown_text[: marker_end + 5]
+    body = markdown_text[marker_end + 5 :]
+    return front_matter, body
+
+
+def split_horizontal_rule_items(markdown_body: str) -> tuple[list[str], list[list[str]]]:
+    preamble_lines: list[str] = []
+    item_blocks: list[list[str]] = []
+    current_item: list[str] = []
+    saw_separator = False
+
+    for line in markdown_body.splitlines():
+        if HORIZONTAL_RULE_RE.match(line):
+            if not saw_separator:
+                preamble_lines = current_item
+            else:
+                item_blocks.append(current_item)
+            current_item = []
+            saw_separator = True
+            continue
+        current_item.append(line)
+
+    if not saw_separator:
+        return current_item, []
+
+    if current_item:
+        item_blocks.append(current_item)
+
+    return preamble_lines, item_blocks
+
+
+def normalize_horizontal_rule_item(lines: list[str]) -> str:
+    if not lines:
+        raise InputValidationError("horizontal-rule item must not be empty")
+    item_text = "\n".join(line.rstrip() for line in lines).strip()
+    if not item_text:
+        raise InputValidationError("horizontal-rule item must not be blank")
+    return item_text
 
 
 def dump_ast(input_path: Path) -> str:
@@ -690,6 +807,9 @@ def build_assessment_model(
     blocks: list[dict[str, Any]],
     stem: str,
     asset_root: Path | None,
+    shuffle_items: bool = False,
+    item_limit: int | None = None,
+    shuffle_seed: int | None = None,
 ) -> Assessment:
     title = stringify_scalar(meta.get("title"))
     if not title:
@@ -702,6 +822,12 @@ def build_assessment_model(
     sections = parse_sections(blocks)
     if not sections:
         raise InputValidationError("the document does not contain any items")
+    sections = select_sections(
+        sections,
+        shuffle_items=shuffle_items,
+        item_limit=item_limit,
+        shuffle_seed=shuffle_seed,
+    )
 
     rendered_sections: list[Section] = []
     for raw_section in sections:
@@ -732,6 +858,44 @@ def build_assessment_model(
         sections=rendered_sections,
         assets=asset_manager.records(),
     )
+
+
+def select_sections(
+    sections: list[RawSection],
+    *,
+    shuffle_items: bool,
+    item_limit: int | None,
+    shuffle_seed: int | None,
+) -> list[RawSection]:
+    flattened: list[tuple[RawSection, RawItem]] = []
+    for section in sections:
+        for item in section.items:
+            flattened.append((section, item))
+
+    if shuffle_items:
+        rng = random.Random(shuffle_seed)
+        rng.shuffle(flattened)
+
+    if item_limit is not None:
+        flattened = flattened[:item_limit]
+
+    selected_sections: list[RawSection] = []
+    sections_by_ident: dict[str, RawSection] = {}
+    for original_section, item in flattened:
+        selected_section = sections_by_ident.get(original_section.ident_hint)
+        if selected_section is None:
+            selected_section = RawSection(
+                ident_hint=original_section.ident_hint,
+                title=original_section.title,
+                description_blocks=copy.deepcopy(original_section.description_blocks),
+                items=[],
+                section_index=original_section.section_index,
+            )
+            sections_by_ident[original_section.ident_hint] = selected_section
+            selected_sections.append(selected_section)
+        selected_section.items.append(copy.deepcopy(item))
+
+    return selected_sections
 
 
 def parse_sections(blocks: list[dict[str, Any]]) -> list[RawSection]:

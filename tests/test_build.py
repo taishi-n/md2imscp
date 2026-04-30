@@ -59,5 +59,118 @@ class BuildPackageTests(unittest.TestCase):
                 self.assertIn("True", xml_text)
                 self.assertIn("False", xml_text)
 
+    def test_item_limit_keeps_only_first_n_items(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Limited Assessment
+            ---
+
+            ## Section A
+
+            ### 問題 1 {type="true-false" answer="true"}
+            A
+
+            ### 問題 2 {type="true-false" answer="false"}
+            B
+
+            ## Section B
+
+            ### 問題 3 {type="true-false" answer="true"}
+            C
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "limited.md"
+            output = temp_dir / "limited.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            build_package(source, output, item_limit=2, run_validation=True)
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("limited.xml").decode("utf-8")
+                self.assertIn('<section ident=', xml_text)
+                self.assertIn('title="Section A"', xml_text)
+                self.assertIn('title="問題 1"', xml_text)
+                self.assertIn('title="問題 2"', xml_text)
+                self.assertNotIn('title="問題 3"', xml_text)
+                self.assertNotIn('title="Section B"', xml_text)
+
+    def test_shuffle_items_with_seed_reorders_and_limits_across_sections(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Shuffled Assessment
+            ---
+
+            ## First
+
+            ### Alpha {type="true-false" answer="true"}
+            A
+
+            ### Beta {type="true-false" answer="false"}
+            B
+
+            ## Second
+
+            ### Gamma {type="true-false" answer="true"}
+            C
+
+            ### Delta {type="true-false" answer="false"}
+            D
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "shuffled.md"
+            output = temp_dir / "shuffled.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            build_package(source, output, shuffle_items=True, shuffle_seed=7, item_limit=2, run_validation=True)
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("shuffled.xml").decode("utf-8")
+                alpha_pos = xml_text.find('title="Alpha"')
+                beta_pos = xml_text.find('title="Beta"')
+                gamma_pos = xml_text.find('title="Gamma"')
+                delta_pos = xml_text.find('title="Delta"')
+                self.assertEqual(-1, alpha_pos)
+                self.assertNotEqual(-1, beta_pos)
+                self.assertEqual(-1, gamma_pos)
+                self.assertNotEqual(-1, delta_pos)
+                self.assertLess(delta_pos, beta_pos)
+
+    def test_horizontal_rule_mode_generates_markdown_and_builds_package(self) -> None:
+        sample = PROJECT_ROOT / "examples" / "horizontal_rule_single_choice_bank.md"
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            output = temp_dir / "bank.zip"
+            generated = temp_dir / "generated.md"
+
+            build_package(
+                sample,
+                output,
+                horizontal_rule_item_type="single-choice",
+                shuffle_items=True,
+                shuffle_seed=1,
+                item_limit=2,
+                generated_markdown_out=generated,
+                run_validation=True,
+            )
+
+            generated_text = generated.read_text(encoding="utf-8")
+            self.assertIn('### 問題 1 {type="single-choice"}', generated_text)
+            self.assertIn('### 問題 2 {type="single-choice"}', generated_text)
+            self.assertIn("**整数型** をひとつ選べ。", generated_text)
+            self.assertIn("`#include <iostream>` の説明として正しいものを選べ。", generated_text)
+            self.assertNotIn("`cout` で改行するものを選べ。", generated_text)
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("cpp-bank.xml").decode("utf-8")
+                self.assertIn("整数型", xml_text)
+                self.assertIn("#include &lt;iostream&gt;", xml_text)
+                self.assertNotIn("cout</code> で改行するものを選べ", xml_text)
+
 if __name__ == "__main__":
     unittest.main()

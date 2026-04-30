@@ -25,6 +25,7 @@ References: [README.md](./README.md), `examples/sample_assessment.md`, `examples
 - asset 同梱規則
 - 出力 package の構造
 - CLI と検証条件
+- build 時の item 順シャッフルと件数制限
 
 本仕様の対象外は次とする。
 
@@ -301,6 +302,12 @@ item 見出しは Pandoc の属性構文を使ってよい。
 - 実装は Markdown を直接文字列置換してはならず、Pandoc 構造を基準に HTML 断片へ変換しなければならない。
 - 問題文、選択肢、フィードバック、section 説明は HTML 断片として生成し、XML の `mattext` に CDATA として格納しなければならない。
 - サポートしない Pandoc block / inline は入力検証エラーとしなければならない。
+- `--shuffle-items` が指定された場合、実装は item 集合を section をまたいで 1 列に並べ、指定 seed に基づいて順序を並べ替えてよい。
+- `--item-limit N` が指定された場合、実装は item 列の先頭 N 件だけを出力しなければならない。
+- item の絞り込み後に空になった section は出力してはならない。
+- item を絞り込んだ結果、複数 section に item が残る場合、section の出力順は残存 item が最初に現れた順としなければならない。
+- `--horizontal-rule-item-type TYPE` が指定された場合、実装は通常の section / item 構造を読む前に、水平線で区切られた各ブロックを `###` item へ展開した等価 Markdown として扱わなければならない。
+- horizontal-rule モードで `--generated-markdown-out PATH` が指定された場合、実装は抽出・並べ替え後の等価 Markdown を指定パスへ書き出さなければならない。
 
 ### 8.2 ブロック要素
 
@@ -416,6 +423,11 @@ md2imscp build input.md -o out.zip
 - `--stem NAME`: 出力 XML の stem を明示指定する。
 - `--asset-root DIR`: 相対 asset 解決の基準ディレクトリを指定する。
 - `--validate`: 生成後に `validate` と同等の検証を実行する。
+- `--shuffle-items`: item 順を並べ替えてから出力する。
+- `--item-limit N`: item を先頭 N 件に制限する。
+- `--shuffle-seed SEED`: `--shuffle-items` で使う疑似乱数 seed を指定する。
+- `--horizontal-rule-item-type TYPE`: 水平線で区切られた各ブロックを、指定した単一問題形式の item として展開してから build する。
+- `--generated-markdown-out PATH`: horizontal-rule モードで使われた展開後 Markdown を保存する。
 
 成功時、`build` は生成した zip パスを標準出力へ表示しなければならない。
 

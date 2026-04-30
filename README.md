@@ -104,6 +104,7 @@ export PATH="$(uv tool dir --bin):$PATH"
 md2imscp --help
 cd /tmp
 md2imscp build /Users/you/work/input.md -o /tmp/out.zip --validate
+md2imscp build /Users/you/work/input.md -o /tmp/out-10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
 ```
 
 更新を反映したい場合は、必要に応じて再実行してください。
@@ -216,10 +217,32 @@ minimal.zip
 <mattext charset="ascii-us" texttype="text/plain" xml:space="default"><![CDATA[<p><code>cout</code> で改行するものを選べ。</p>]]></mattext>
 ```
 
+## 問題バンク形式のサンプル
+
+`examples/horizontal_rule_single_choice_bank.md` は、水平線で区切られた各ブロックを 1 問として扱うサンプルです。各ブロックの本文は同一問題形式で連続している前提で、build 時に通常の `###` item 形式へ展開されます。
+
+このモードでは、`--horizontal-rule-item-type` で問題形式を指定し、必要なら `--generated-markdown-out` で展開後の Markdown を保存できます。
+
+```bash
+uv run md2imscp build \
+  examples/horizontal_rule_single_choice_bank.md \
+  -o bank.zip \
+  --horizontal-rule-item-type single-choice \
+  --shuffle-items \
+  --shuffle-seed 1 \
+  --item-limit 2 \
+  --generated-markdown-out /tmp/bank.generated.md \
+  --validate
+```
+
+`/tmp/bank.generated.md` には、抽出・シャッフル後の通常形式 Markdown が保存されます。
+
 ## 主要コマンド
 
 ```bash
 uv run md2imscp build examples/sample_assessment.md -o out.zip --validate
+uv run md2imscp build examples/sample_assessment.md -o sample10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
+uv run md2imscp build examples/horizontal_rule_single_choice_bank.md -o bank.zip --horizontal-rule-item-type single-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank.generated.md --validate
 uv run md2imscp dump-ast examples/sample_assessment.md
 uv run md2imscp validate out.zip
 ```
@@ -228,8 +251,10 @@ uv run md2imscp validate out.zip
 
 ```bash
 md2imscp build examples/sample_assessment.md -o out.zip --validate
+md2imscp build examples/sample_assessment.md -o sample10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
+md2imscp build examples/horizontal_rule_single_choice_bank.md -o bank.zip --horizontal-rule-item-type single-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank.generated.md --validate
 md2imscp dump-ast examples/sample_assessment.md
 md2imscp validate out.zip
 ```
 
-`examples/sample_assessment.md` はもう少し大きいサンプル、`examples/exportAssessment.zip` は互換性確認用の出力例です。
+`examples/sample_assessment.md` は通常形式のサンプル、`examples/horizontal_rule_single_choice_bank.md` は問題バンク形式のサンプル、`examples/exportAssessment.zip` は互換性確認用の出力例です。

@@ -14,6 +14,8 @@
 
 section がない場合は `Default` が自動生成されます。
 
+通常形式に加えて、`build --horizontal-rule-item-type TYPE` を付けた場合は、水平線で区切られた各ブロックを 1 問として展開する問題バンク形式も使えます。
+
 ## front matter
 
 現在の実装が読むキーは次です。
@@ -140,6 +142,52 @@ task list を使います。
 ```
 
 右列の重複は 1 つの候補へまとめられます。
+
+## 水平線区切り問題バンク形式
+
+`build --horizontal-rule-item-type TYPE` を使うと、水平線で区切られた各ブロックを同一問題形式の item 群として扱えます。
+
+```md
+---
+title: C++ 小テスト問題バンク
+---
+
+---
+`cout` で改行するものを選べ。
+
+- [ ] `<<`
+- [x] `endl`
+- [ ] `::`
+
+---
+**整数型** をひとつ選べ。
+
+- [x] `int`
+- [ ] `double`
+- [ ] `std::string`
+```
+
+この入力に対して次を実行すると、
+
+```bash
+md2imscp build bank.md -o bank.zip --horizontal-rule-item-type single-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank.generated.md
+```
+
+`/tmp/bank.generated.md` には通常の `### 問題 N {type="single-choice"}` 形式へ展開された Markdown が出力されます。
+
+現状このモードで明示サポートする問題形式は次です。
+
+- `single-choice`
+- `multiple-choice`
+- `true-false`
+- `cloze`
+- `matching`
+
+前提は次です。
+
+- 問題集合は水平線で区切られた連続ブロックとして書く
+- 各ブロックは同一問題形式の本文として解釈できる内容にする
+- `shuffle-items` と `item-limit` はブロックを並べ替え・抽出した結果に対して適用される
 
 ## フィードバック
 

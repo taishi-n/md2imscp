@@ -12,6 +12,13 @@ from .core import (
 )
 
 
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="md2imscp")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -29,6 +36,31 @@ def build_parser() -> argparse.ArgumentParser:
         "--validate",
         action="store_true",
         help="Validate the generated package after building it.",
+    )
+    build_parser.add_argument(
+        "--shuffle-items",
+        action="store_true",
+        help="Shuffle item order before writing the package.",
+    )
+    build_parser.add_argument(
+        "--item-limit",
+        type=positive_int,
+        help="Keep only the first N items after optional shuffling.",
+    )
+    build_parser.add_argument(
+        "--shuffle-seed",
+        type=int,
+        help="Seed used with --shuffle-items for reproducible item order.",
+    )
+    build_parser.add_argument(
+        "--horizontal-rule-item-type",
+        choices=["single-choice", "multiple-choice", "true-false", "cloze", "matching"],
+        help="Treat each horizontal-rule-delimited block in the input Markdown as one item of the given type.",
+    )
+    build_parser.add_argument(
+        "--generated-markdown-out",
+        type=Path,
+        help="Write the generated standard Markdown used for build when --horizontal-rule-item-type is enabled.",
     )
 
     dump_ast_parser = subparsers.add_parser("dump-ast", help="Dump the Pandoc JSON AST.")
@@ -52,6 +84,11 @@ def main(argv: list[str] | None = None) -> int:
                 stem=args.stem,
                 asset_root=args.asset_root,
                 run_validation=args.validate,
+                shuffle_items=args.shuffle_items,
+                item_limit=args.item_limit,
+                shuffle_seed=args.shuffle_seed,
+                horizontal_rule_item_type=args.horizontal_rule_item_type,
+                generated_markdown_out=args.generated_markdown_out,
             )
             print(output)
             return 0

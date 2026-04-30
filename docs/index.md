@@ -9,6 +9,8 @@
 - `build` コマンドで Markdown から zip を生成する
 - `dump-ast` コマンドで Pandoc JSON AST を確認する
 - `validate` コマンドで生成済み package を検証する
+- `build` 時に item 順をシャッフルしたり、先頭 N 問だけを抽出したりできる
+- 水平線区切りの問題バンクを通常形式 Markdown に展開してから build できる
 - 次の問題形式を扱う
   - `single-choice`
   - `multiple-choice`
@@ -24,6 +26,8 @@
 ```bash
 uv sync
 uv run md2imscp build examples/sample_assessment.md -o out.zip --validate
+uv run md2imscp build examples/sample_assessment.md -o sample10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
+uv run md2imscp build examples/horizontal_rule_single_choice_bank.md -o bank.zip --horizontal-rule-item-type single-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank.generated.md --validate
 ```
 
 リポジトリ外から直接使いたい場合は、ローカルインストールできます。
