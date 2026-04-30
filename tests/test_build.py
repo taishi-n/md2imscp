@@ -59,6 +59,5 @@ class BuildPackageTests(unittest.TestCase):
                 self.assertIn("True", xml_text)
                 self.assertIn("False", xml_text)
 
-
 if __name__ == "__main__":
     unittest.main()

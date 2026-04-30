@@ -26,6 +26,25 @@ uv sync
 uv run md2imscp build examples/sample_assessment.md -o out.zip --validate
 ```
 
+リポジトリ外から直接使いたい場合は、ローカルインストールできます。
+
+`uv` を使う場合:
+
+```bash
+uv tool install -e .
+md2imscp build /path/to/input.md -o /tmp/out.zip --validate
+```
+
+`uv` を使わない場合:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip setuptools
+python -m pip install -e .
+md2imscp validate /tmp/out.zip
+```
+
 出力された `out.zip` には、少なくとも次の 2 ファイルが含まれます。
 
 - `imsmanifest.xml`

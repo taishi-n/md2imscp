@@ -69,6 +69,8 @@ sudo apt-get install -y libxml2-utils
 uv sync
 ```
 
+この方法は開発用です。リポジトリ外の任意の場所から `md2imscp` を直接実行したい場合は、下の「ローカルインストール」を使ってください。
+
 ### `uv` を使わない場合
 
 ```bash
@@ -76,6 +78,63 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
 python -m pip install -e .
+```
+
+## ローカルインストール
+
+このリポジトリをチェックアウトしたまま、別ディレクトリから `md2imscp` を直接実行したい場合の方法です。
+
+### `uv` を使う場合
+
+Astral の公式ドキュメントでは、CLI ツールの常用には `uv tool install` が案内されています。このリポジトリ直下で次を実行してください。
+
+```bash
+uv tool install -e .
+```
+
+`uv` の実行ファイルディレクトリが `PATH` に入っていなければ追加してください。
+
+```bash
+export PATH="$(uv tool dir --bin):$PATH"
+```
+
+実行例:
+
+```bash
+md2imscp --help
+cd /tmp
+md2imscp build /Users/you/work/input.md -o /tmp/out.zip --validate
+```
+
+更新を反映したい場合は、必要に応じて再実行してください。
+
+```bash
+uv tool install -e . --reinstall
+```
+
+### `uv` を使わない場合
+
+`pip` で CLI エントリーポイントを入れる場合は、任意の仮想環境を作ってこのリポジトリを editable install します。
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip setuptools
+python -m pip install -e .
+```
+
+この方法では、`md2imscp` はその仮想環境を activate している間だけ実行できます。別ディレクトリから使う例:
+
+```bash
+source /path/to/md2imscp/.venv/bin/activate
+cd /tmp
+md2imscp validate /tmp/out.zip
+```
+
+activate せずに使う場合は、その仮想環境の実行ファイルを直接呼びます。
+
+```bash
+/path/to/md2imscp/.venv/bin/md2imscp dump-ast /path/to/input.md
 ```
 
 Python パッケージ依存:
@@ -163,6 +222,14 @@ minimal.zip
 uv run md2imscp build examples/sample_assessment.md -o out.zip --validate
 uv run md2imscp dump-ast examples/sample_assessment.md
 uv run md2imscp validate out.zip
+```
+
+ローカルインストール後は、`uv run` を付けずに同じ CLI をそのまま使えます。
+
+```bash
+md2imscp build examples/sample_assessment.md -o out.zip --validate
+md2imscp dump-ast examples/sample_assessment.md
+md2imscp validate out.zip
 ```
 
 `examples/sample_assessment.md` はもう少し大きいサンプル、`examples/exportAssessment.zip` は互換性確認用の出力例です。
