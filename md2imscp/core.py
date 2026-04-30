@@ -557,6 +557,7 @@ def build_package(
     shuffle_items: bool = False,
     item_limit: int | None = None,
     shuffle_seed: int | None = None,
+    shuffle_multiple_choice_options: bool = False,
     horizontal_rule_item_type: str | None = None,
     generated_markdown_out: Path | None = None,
 ) -> Path:
@@ -606,6 +607,7 @@ def build_package(
         shuffle_items=shuffle_items,
         item_limit=item_limit,
         shuffle_seed=shuffle_seed,
+        shuffle_multiple_choice_options=shuffle_multiple_choice_options,
     )
     package_files = build_package_files(assessment)
 
@@ -810,6 +812,7 @@ def build_assessment_model(
     shuffle_items: bool = False,
     item_limit: int | None = None,
     shuffle_seed: int | None = None,
+    shuffle_multiple_choice_options: bool = False,
 ) -> Assessment:
     title = stringify_scalar(meta.get("title"))
     if not title:
@@ -834,7 +837,15 @@ def build_assessment_model(
         if not raw_section.items:
             raise InputValidationError(f"section has no items: {raw_section.title}")
         description_html = renderer.render_blocks(raw_section.description_blocks)
-        items = [build_item(raw_item, renderer) for raw_item in raw_section.items]
+        items = [
+            build_item(
+                raw_item,
+                renderer,
+                shuffle_multiple_choice_options=shuffle_multiple_choice_options,
+                shuffle_seed=shuffle_seed,
+            )
+            for raw_item in raw_section.items
+        ]
         rendered_sections.append(
             Section(
                 ident=sanitize_ident(raw_section.ident_hint),
@@ -978,7 +989,13 @@ def parse_sections(blocks: list[dict[str, Any]]) -> list[RawSection]:
     return sections
 
 
-def build_item(raw_item: RawItem, renderer: HtmlRenderer) -> Item:
+def build_item(
+    raw_item: RawItem,
+    renderer: HtmlRenderer,
+    *,
+    shuffle_multiple_choice_options: bool = False,
+    shuffle_seed: int | None = None,
+) -> Item:
     item_type = raw_item.attrs.get("type")
     if not item_type:
         raise InputValidationError(f"item is missing type: {raw_item.title}")
@@ -1008,6 +1025,8 @@ def build_item(raw_item: RawItem, renderer: HtmlRenderer) -> Item:
 
     if item_type == "multiple-choice":
         prompt_blocks, choices = extract_task_choices(body_blocks, renderer, allow_multiple_correct=True, title=title)
+        if shuffle_multiple_choice_options:
+            choices = shuffle_choice_options(choices, item_ident=ident, shuffle_seed=shuffle_seed)
         return Item(
             ident=ident,
             title=title,
@@ -1097,6 +1116,18 @@ def build_item(raw_item: RawItem, renderer: HtmlRenderer) -> Item:
         )
 
     raise InputValidationError(f"unsupported item type {item_type!r}")
+
+
+def shuffle_choice_options(
+    choices: list[ChoiceOption],
+    *,
+    item_ident: str,
+    shuffle_seed: int | None,
+) -> list[ChoiceOption]:
+    shuffled = copy.deepcopy(choices)
+    rng = random.Random() if shuffle_seed is None else random.Random(f"{shuffle_seed}:{item_ident}")
+    rng.shuffle(shuffled)
+    return shuffled
 
 
 def split_feedback_blocks(

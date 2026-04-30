@@ -172,5 +172,71 @@ class BuildPackageTests(unittest.TestCase):
                 self.assertIn("#include &lt;iostream&gt;", xml_text)
                 self.assertNotIn("cout</code> で改行するものを選べ", xml_text)
 
+    def test_horizontal_rule_bank_examples_build_for_each_supported_type(self) -> None:
+        cases = [
+            ("horizontal_rule_single_choice_bank.md", "single-choice", "cpp-bank.xml"),
+            ("horizontal_rule_multiple_choice_bank.md", "multiple-choice", "cpp-multiple-choice-bank.xml"),
+            ("horizontal_rule_true_false_bank.md", "true-false", "cpp-true-false-bank.xml"),
+            ("horizontal_rule_cloze_bank.md", "cloze", "cpp-cloze-bank.xml"),
+            ("horizontal_rule_matching_bank.md", "matching", "cpp-matching-bank.xml"),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            for filename, item_type, xml_name in cases:
+                source = PROJECT_ROOT / "examples" / filename
+                output = temp_dir / f"{source.stem}.zip"
+                build_package(
+                    source,
+                    output,
+                    horizontal_rule_item_type=item_type,
+                    shuffle_items=True,
+                    shuffle_seed=3,
+                    item_limit=2,
+                    run_validation=True,
+                )
+                with zipfile.ZipFile(output) as archive:
+                    self.assertIn("imsmanifest.xml", archive.namelist())
+                    self.assertIn(xml_name, archive.namelist())
+
+    def test_shuffle_multiple_choice_options_reorders_choice_output(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Choice Shuffle
+            ---
+
+            ### 問題 1 {type="multiple-choice"}
+            正しいものをすべて選べ。
+
+            - [x] Alpha
+            - [ ] Beta
+            - [x] Gamma
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "choice-shuffle.md"
+            output = temp_dir / "choice-shuffle.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            build_package(
+                source,
+                output,
+                shuffle_multiple_choice_options=True,
+                shuffle_seed=11,
+                run_validation=True,
+            )
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("choice-shuffle.xml").decode("utf-8")
+                alpha_pos = xml_text.find("<![CDATA[Alpha]]>")
+                beta_pos = xml_text.find("<![CDATA[Beta]]>")
+                gamma_pos = xml_text.find("<![CDATA[Gamma]]>")
+                self.assertNotEqual(-1, alpha_pos)
+                self.assertNotEqual(-1, beta_pos)
+                self.assertNotEqual(-1, gamma_pos)
+                self.assertLess(alpha_pos, gamma_pos)
+                self.assertLess(gamma_pos, beta_pos)
+
 if __name__ == "__main__":
     unittest.main()

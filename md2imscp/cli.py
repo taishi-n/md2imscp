@@ -50,7 +50,12 @@ def build_parser() -> argparse.ArgumentParser:
     build_parser.add_argument(
         "--shuffle-seed",
         type=int,
-        help="Seed used with --shuffle-items for reproducible item order.",
+        help="Seed used with shuffle options for reproducible output order.",
+    )
+    build_parser.add_argument(
+        "--shuffle-multiple-choice-options",
+        action="store_true",
+        help="Shuffle options within multiple-choice items.",
     )
     build_parser.add_argument(
         "--horizontal-rule-item-type",
@@ -87,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
                 shuffle_items=args.shuffle_items,
                 item_limit=args.item_limit,
                 shuffle_seed=args.shuffle_seed,
+                shuffle_multiple_choice_options=args.shuffle_multiple_choice_options,
                 horizontal_rule_item_type=args.horizontal_rule_item_type,
                 generated_markdown_out=args.generated_markdown_out,
             )

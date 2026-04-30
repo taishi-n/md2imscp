@@ -177,6 +177,7 @@ item 見出しは Pandoc の属性構文を使ってよい。
 - 正解の選択肢はちょうど 1 個でなければならない。
 - task list 以外の本文ブロックは問題文として扱わなければならない。
 - `shuffle=true` の場合、出力 XML は選択肢シャッフル可能でなければならない。
+- `--shuffle-multiple-choice-options` が指定された場合、実装は `multiple-choice` の選択肢出力順を並べ替えてよい。
 
 例:
 
@@ -304,6 +305,7 @@ item 見出しは Pandoc の属性構文を使ってよい。
 - サポートしない Pandoc block / inline は入力検証エラーとしなければならない。
 - `--shuffle-items` が指定された場合、実装は item 集合を section をまたいで 1 列に並べ、指定 seed に基づいて順序を並べ替えてよい。
 - `--item-limit N` が指定された場合、実装は item 列の先頭 N 件だけを出力しなければならない。
+- `--shuffle-multiple-choice-options` が指定された場合、実装は `multiple-choice` item の選択肢列を並べ替えてよい。
 - item の絞り込み後に空になった section は出力してはならない。
 - item を絞り込んだ結果、複数 section に item が残る場合、section の出力順は残存 item が最初に現れた順としなければならない。
 - `--horizontal-rule-item-type TYPE` が指定された場合、実装は通常の section / item 構造を読む前に、水平線で区切られた各ブロックを `###` item へ展開した等価 Markdown として扱わなければならない。
@@ -425,7 +427,8 @@ md2imscp build input.md -o out.zip
 - `--validate`: 生成後に `validate` と同等の検証を実行する。
 - `--shuffle-items`: item 順を並べ替えてから出力する。
 - `--item-limit N`: item を先頭 N 件に制限する。
-- `--shuffle-seed SEED`: `--shuffle-items` で使う疑似乱数 seed を指定する。
+- `--shuffle-seed SEED`: shuffle 系オプションで使う疑似乱数 seed を指定する。
+- `--shuffle-multiple-choice-options`: `multiple-choice` の選択肢順を並べ替えてから出力する。
 - `--horizontal-rule-item-type TYPE`: 水平線で区切られた各ブロックを、指定した単一問題形式の item として展開してから build する。
 - `--generated-markdown-out PATH`: horizontal-rule モードで使われた展開後 Markdown を保存する。
 

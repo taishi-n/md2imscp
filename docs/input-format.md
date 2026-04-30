@@ -85,6 +85,8 @@ task list を使います。
 
 正解は 1 個以上必要です。
 
+CLI の `--shuffle-multiple-choice-options` を使うと、`multiple-choice` の選択肢順を build 時に実際に並べ替えられます。`--shuffle-seed` を併用すると順序を再現できます。
+
 ### `true-false`
 
 `single-choice` と同じ task list 記法で書けます。
@@ -182,6 +184,14 @@ md2imscp build bank.md -o bank.zip --horizontal-rule-item-type single-choice --s
 - `true-false`
 - `cloze`
 - `matching`
+
+対応するサンプルは `examples/` に別ファイルで用意されています。
+
+- `horizontal_rule_single_choice_bank.md`
+- `horizontal_rule_multiple_choice_bank.md`
+- `horizontal_rule_true_false_bank.md`
+- `horizontal_rule_cloze_bank.md`
+- `horizontal_rule_matching_bank.md`
 
 前提は次です。
 

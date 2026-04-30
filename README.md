@@ -105,6 +105,7 @@ md2imscp --help
 cd /tmp
 md2imscp build /Users/you/work/input.md -o /tmp/out.zip --validate
 md2imscp build /Users/you/work/input.md -o /tmp/out-10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
+md2imscp build /Users/you/work/input.md -o /tmp/out-shuffled-choices.zip --shuffle-multiple-choice-options --shuffle-seed 42
 ```
 
 更新を反映したい場合は、必要に応じて再実行してください。
@@ -217,11 +218,21 @@ minimal.zip
 <mattext charset="ascii-us" texttype="text/plain" xml:space="default"><![CDATA[<p><code>cout</code> で改行するものを選べ。</p>]]></mattext>
 ```
 
+`multiple-choice` 問題の選択肢順を実際に並べ替えたい場合は、`--shuffle-multiple-choice-options` を使います。再現可能な順序が必要なら `--shuffle-seed` を併用します。
+
 ## 問題バンク形式のサンプル
 
-`examples/horizontal_rule_single_choice_bank.md` は、水平線で区切られた各ブロックを 1 問として扱うサンプルです。各ブロックの本文は同一問題形式で連続している前提で、build 時に通常の `###` item 形式へ展開されます。
+水平線区切り問題バンクのサンプルを、対応している各問題タイプごとに用意しています。
+
+- `examples/horizontal_rule_single_choice_bank.md`
+- `examples/horizontal_rule_multiple_choice_bank.md`
+- `examples/horizontal_rule_true_false_bank.md`
+- `examples/horizontal_rule_cloze_bank.md`
+- `examples/horizontal_rule_matching_bank.md`
 
 このモードでは、`--horizontal-rule-item-type` で問題形式を指定し、必要なら `--generated-markdown-out` で展開後の Markdown を保存できます。
+
+単一選択の例:
 
 ```bash
 uv run md2imscp build \
@@ -237,12 +248,23 @@ uv run md2imscp build \
 
 `/tmp/bank.generated.md` には、抽出・シャッフル後の通常形式 Markdown が保存されます。
 
+他の問題タイプの例:
+
+```bash
+uv run md2imscp build examples/horizontal_rule_multiple_choice_bank.md -o bank-mc.zip --horizontal-rule-item-type multiple-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank-mc.generated.md --validate
+uv run md2imscp build examples/horizontal_rule_true_false_bank.md -o bank-tf.zip --horizontal-rule-item-type true-false --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank-tf.generated.md --validate
+uv run md2imscp build examples/horizontal_rule_cloze_bank.md -o bank-cloze.zip --horizontal-rule-item-type cloze --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank-cloze.generated.md --validate
+uv run md2imscp build examples/horizontal_rule_matching_bank.md -o bank-matching.zip --horizontal-rule-item-type matching --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank-matching.generated.md --validate
+```
+
 ## 主要コマンド
 
 ```bash
 uv run md2imscp build examples/sample_assessment.md -o out.zip --validate
 uv run md2imscp build examples/sample_assessment.md -o sample10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
+uv run md2imscp build examples/sample_assessment.md -o sample-choices.zip --shuffle-multiple-choice-options --shuffle-seed 42
 uv run md2imscp build examples/horizontal_rule_single_choice_bank.md -o bank.zip --horizontal-rule-item-type single-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank.generated.md --validate
+uv run md2imscp build examples/horizontal_rule_multiple_choice_bank.md -o bank-mc.zip --horizontal-rule-item-type multiple-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --validate
 uv run md2imscp dump-ast examples/sample_assessment.md
 uv run md2imscp validate out.zip
 ```
@@ -252,9 +274,11 @@ uv run md2imscp validate out.zip
 ```bash
 md2imscp build examples/sample_assessment.md -o out.zip --validate
 md2imscp build examples/sample_assessment.md -o sample10.zip --shuffle-items --shuffle-seed 42 --item-limit 10
+md2imscp build examples/sample_assessment.md -o sample-choices.zip --shuffle-multiple-choice-options --shuffle-seed 42
 md2imscp build examples/horizontal_rule_single_choice_bank.md -o bank.zip --horizontal-rule-item-type single-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --generated-markdown-out /tmp/bank.generated.md --validate
+md2imscp build examples/horizontal_rule_multiple_choice_bank.md -o bank-mc.zip --horizontal-rule-item-type multiple-choice --shuffle-items --shuffle-seed 1 --item-limit 2 --validate
 md2imscp dump-ast examples/sample_assessment.md
 md2imscp validate out.zip
 ```
 
-`examples/sample_assessment.md` は通常形式のサンプル、`examples/horizontal_rule_single_choice_bank.md` は問題バンク形式のサンプル、`examples/exportAssessment.zip` は互換性確認用の出力例です。
+`examples/sample_assessment.md` は通常形式のサンプル、`examples/horizontal_rule_*_bank.md` は問題バンク形式のサンプル、`examples/exportAssessment.zip` は互換性確認用の出力例です。
