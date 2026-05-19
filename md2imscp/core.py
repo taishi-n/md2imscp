@@ -1463,7 +1463,7 @@ def build_choice_item(item_el: ET.Element, item: Item, serializer: CDataSerializ
         add_blank_matimage_material(label_el)
 
     resprocessing = ET.SubElement(item_el, "resprocessing")
-    add_outcomes(resprocessing)
+    add_outcomes(resprocessing, item)
     for choice in item.choices:
         respcondition = ET.SubElement(
             resprocessing,
@@ -1476,7 +1476,10 @@ def build_choice_item(item_el: ET.Element, item: Item, serializer: CDataSerializ
             "varequal",
             {"case": "Yes", "respident": item.response_ident},
         ).text = choice.ident
-        ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = "0.0"
+        ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = choice_score_value(
+            item.item_type,
+            choice.correct,
+        )
         ET.SubElement(
             respcondition,
             "displayfeedback",
@@ -1494,13 +1497,13 @@ def build_numeric_item(item_el: ET.Element, item: Item, serializer: CDataSeriali
     ET.SubElement(response, "render_fin", {"columns": "5", "fintype": "String", "prompt": "Box", "rows": "1"})
 
     resprocessing = ET.SubElement(item_el, "resprocessing")
-    add_outcomes(resprocessing)
+    add_outcomes(resprocessing, item)
     respcondition = ET.SubElement(resprocessing, "respcondition", {"continue": "Yes"})
     conditionvar = ET.SubElement(respcondition, "conditionvar")
     or_el = ET.SubElement(conditionvar, "or")
     for answer in item.answers:
         ET.SubElement(or_el, "varequal", {"case": "No", "respident": item.response_ident}).text = answer
-    ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = "0"
+    ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = "1"
 
 
 def build_cloze_item(item_el: ET.Element, item: Item, serializer: CDataSerializer) -> None:
@@ -1519,14 +1522,15 @@ def build_cloze_item(item_el: ET.Element, item: Item, serializer: CDataSerialize
     add_text_material(inner_flow, item.cloze_segments[-1], serializer)
 
     resprocessing = ET.SubElement(item_el, "resprocessing")
-    add_outcomes(resprocessing)
+    add_outcomes(resprocessing, item)
+    blank_score = fractional_score_text(len(item.cloze_blanks))
     for blank in item.cloze_blanks:
         respcondition = ET.SubElement(resprocessing, "respcondition", {"continue": "Yes"})
         conditionvar = ET.SubElement(respcondition, "conditionvar")
         or_el = ET.SubElement(conditionvar, "or")
         for answer in blank.answers:
             ET.SubElement(or_el, "varequal", {"case": "No", "respident": blank.ident}).text = answer
-        ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = "0"
+        ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = blank_score
 
 
 def build_matching_item(item_el: ET.Element, item: Item, serializer: CDataSerializer) -> None:
@@ -1564,7 +1568,8 @@ def build_matching_item(item_el: ET.Element, item: Item, serializer: CDataSerial
     ET.SubElement(render_choice, "response_label", {"rarea": "Ellipse", "rrange": "Exact", "rshuffle": "Yes"})
 
     resprocessing = ET.SubElement(item_el, "resprocessing")
-    add_outcomes(resprocessing)
+    add_outcomes(resprocessing, item)
+    prompt_score = fractional_score_text(len(item.matching_prompts))
     condition_index = 1
     for prompt in item.matching_prompts:
         for target in item.matching_targets:
@@ -1575,7 +1580,9 @@ def build_matching_item(item_el: ET.Element, item: Item, serializer: CDataSerial
                 "varequal",
                 {"case": "Yes", "index": str(condition_index), "respident": prompt.ident},
             ).text = target.ident
-            ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = "0.0"
+            ET.SubElement(respcondition, "setvar", {"action": "Add", "varname": "SCORE"}).text = (
+                prompt_score if target.ident == prompt.target_ident else "0.0"
+            )
             ET.SubElement(
                 respcondition,
                 "displayfeedback",
@@ -1626,13 +1633,39 @@ def add_blank_matimage_material(parent: ET.Element) -> None:
     ET.SubElement(material, "matimage", {"embedded": "base64", "imagtype": "text/html", "uri": ""})
 
 
-def add_outcomes(parent: ET.Element) -> None:
+def add_outcomes(parent: ET.Element, item: Item) -> None:
     outcomes = ET.SubElement(parent, "outcomes")
     ET.SubElement(
         outcomes,
         "decvar",
-        {"defaultval": "0", "maxvalue": "0.0", "minvalue": "0.0", "varname": "SCORE", "vartype": "Integer"},
+        {
+            "defaultval": "0.0",
+            "maxvalue": item_max_score_value(item),
+            "minvalue": "0.0",
+            "varname": "SCORE",
+            "vartype": "Decimal",
+        },
     )
+
+
+def item_max_score_value(item: Item) -> str:
+    if item.item_type == "multiple-choice":
+        return "0.0"
+    return "1.0"
+
+
+def choice_score_value(item_type: str, is_correct: bool) -> str:
+    if not is_correct:
+        return "0.0"
+    if item_type == "multiple-choice":
+        return "0.0"
+    return "1.0"
+
+
+def fractional_score_text(count: int) -> str:
+    if count <= 0:
+        raise BuildError("score fraction count must be positive")
+    return f"{1 / count:.10g}"
 
 
 def add_qtimetadata_fields(parent: ET.Element, fields: dict[str, str]) -> None:

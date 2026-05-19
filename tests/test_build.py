@@ -58,6 +58,11 @@ class BuildPackageTests(unittest.TestCase):
                 xml_text = archive.read("legacy.xml").decode("utf-8")
                 self.assertIn("True", xml_text)
                 self.assertIn("False", xml_text)
+                self.assertIn(
+                    '<decvar defaultval="0.0" maxvalue="1.0" minvalue="0.0" varname="SCORE" vartype="Decimal" />',
+                    xml_text,
+                )
+                self.assertIn('<setvar action="Add" varname="SCORE">1.0</setvar>', xml_text)
 
     def test_item_limit_keeps_only_first_n_items(self) -> None:
         markdown = textwrap.dedent(
@@ -237,6 +242,57 @@ class BuildPackageTests(unittest.TestCase):
                 self.assertNotEqual(-1, gamma_pos)
                 self.assertLess(alpha_pos, gamma_pos)
                 self.assertLess(gamma_pos, beta_pos)
+                self.assertIn(
+                    '<decvar defaultval="0.0" maxvalue="0.0" minvalue="0.0" varname="SCORE" vartype="Decimal" />',
+                    xml_text,
+                )
+                self.assertIn('<setvar action="Add" varname="SCORE">0.0</setvar>', xml_text)
+
+    def test_default_scores_are_one_point_except_multiple_choice(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Score Defaults
+            ---
+
+            ### Single {type="single-choice"}
+            選べ。
+
+            - [x] A
+            - [ ] B
+
+            ### Numeric {type="numeric" answer="1"}
+            入力せよ。
+
+            ### Cloze {type="cloze"}
+            `[[A]]` と `[[B]]`
+
+            ### Matching {type="matching"}
+            対応づけよ。
+
+            | 項目 | 対応 |
+            | --- | --- |
+            | A | 1 |
+            | B | 2 |
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "score-defaults.md"
+            output = temp_dir / "score-defaults.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            build_package(source, output, run_validation=True)
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("score-defaults.xml").decode("utf-8")
+                self.assertIn(
+                    '<decvar defaultval="0.0" maxvalue="1.0" minvalue="0.0" varname="SCORE" vartype="Decimal" />',
+                    xml_text,
+                )
+                self.assertIn('<setvar action="Add" varname="SCORE">1.0</setvar>', xml_text)
+                self.assertIn('<setvar action="Add" varname="SCORE">1</setvar>', xml_text)
+                self.assertIn('<setvar action="Add" varname="SCORE">0.5</setvar>', xml_text)
 
 if __name__ == "__main__":
     unittest.main()
