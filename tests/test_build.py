@@ -6,7 +6,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from md2imscp.core import build_package, validate_package
+from md2imscp.core import InputValidationError, build_package, validate_package
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -319,6 +319,59 @@ class BuildPackageTests(unittest.TestCase):
                 xml_text = archive.read("preamble.xml").decode("utf-8")
                 self.assertIn("設問本文。", xml_text)
                 self.assertNotIn("この段落は section の説明に出てはいけない。", xml_text)
+
+    def test_question_layout_metadata_accepts_documented_values(self) -> None:
+        cases = [
+            ("I", "question-layout-i.xml"),
+            ("S", "question-layout-s.xml"),
+            ("A", "question-layout-a.xml"),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            for question_layout, xml_name in cases:
+                source = temp_dir / f"{question_layout}.md"
+                output = temp_dir / f"{question_layout}.zip"
+                markdown = textwrap.dedent(
+                    f"""\
+                    ---
+                    title: Question Layout
+                    stem: {xml_name.removesuffix(".xml")}
+                    question_layout: {question_layout}
+                    ---
+
+                    ### 問題 1 {{type="true-false" answer="true"}}
+                    設問本文。
+                    """
+                )
+                source.write_text(markdown, encoding="utf-8")
+
+                build_package(source, output, run_validation=True)
+
+                with zipfile.ZipFile(output) as archive:
+                    xml_text = archive.read(xml_name).decode("utf-8")
+                    self.assertIn("<fieldlabel>QUESTION_LAYOUT</fieldlabel>", xml_text)
+                    self.assertIn(f"<fieldentry>{question_layout}</fieldentry>", xml_text)
+
+    def test_question_layout_metadata_rejects_unknown_value(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Bad Question Layout
+            question_layout: X
+            ---
+
+            ### 問題 1 {type="true-false" answer="true"}
+            設問本文。
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "bad-question-layout.md"
+            output = temp_dir / "bad-question-layout.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            with self.assertRaises(InputValidationError):
+                build_package(source, output, run_validation=True)
 
 if __name__ == "__main__":
     unittest.main()

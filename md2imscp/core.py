@@ -149,6 +149,8 @@ ASSESSMENT_METADATA_DEFAULTS: list[tuple[str, str]] = [
     ("honorpledge_isInstructorEditable", "true"),
 ]
 
+QUESTION_LAYOUT_VALUES = {"I", "S", "A"}
+
 SECTION_METADATA_DEFAULTS: list[tuple[str, str]] = [
     ("SECTION_INFORMATION", ""),
     ("SECTION_OBJECTIVE", ""),
@@ -1315,7 +1317,11 @@ def build_assessment_metadata(
     metadata["CONSIDER_DURATION"] = "True" if duration else "False"
     metadata["ASSESSMENT_RELEASED_TO"] = stringify_scalar(meta.get("released_to"))
     metadata["NAVIGATION"] = stringify_scalar(meta.get("navigation")) or metadata["NAVIGATION"]
-    metadata["QUESTION_LAYOUT"] = stringify_scalar(meta.get("question_layout")) or metadata["QUESTION_LAYOUT"]
+    question_layout = stringify_scalar(meta.get("question_layout")) or metadata["QUESTION_LAYOUT"]
+    if question_layout not in QUESTION_LAYOUT_VALUES:
+        supported = ", ".join(sorted(QUESTION_LAYOUT_VALUES))
+        raise InputValidationError(f"question_layout must be one of {supported}: {question_layout}")
+    metadata["QUESTION_LAYOUT"] = question_layout
     metadata["QUESTION_NUMBERING"] = (
         stringify_scalar(meta.get("question_numbering")) or metadata["QUESTION_NUMBERING"]
     )

@@ -32,6 +32,10 @@ section がない場合は `Default` が自動生成されます。
 - `released_to`
 - `navigation`
 - `question_layout`
+- `question_layout` には次の値を指定できます
+  - `I`: 各問題は別のウェブページにあります
+  - `S`: 問題グループは別のウェブページにあります
+  - `A`: テスト全体が一画面で表示されます
 - `question_numbering`
 - `max_attempts`
 - `allow_raw_html`
