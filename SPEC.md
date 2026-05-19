@@ -71,7 +71,7 @@ References: [README.md](./README.md), `examples/sample_assessment.md`, `examples
 - `#` および `####` 以降の見出しは section / item を開始せず、本文ブロックとして扱わなければならない。
 - `##` が存在しない場合、実装は title が `Default` の section を 1 つ自動生成しなければならない。
 - 各 section は少なくとも 1 つの item を持たなければならない。
-- 最初の `##` または `###` より前にある本文ブロックは、最初の section の説明として扱わなければならない。
+- 最初の `##` または `###` より前にある本文ブロックは無視しなければならない。
 
 ### 4.3 識別子
 
@@ -522,7 +522,7 @@ md2imscp validate out.zip
 この付録は参考情報である。本文の規範要件を変更しない。
 
 - 現在の実装は選択式および整合問題の内部選択肢識別子を `A` から `Z` までしか生成できず、27 個以上の選択肢を扱えない。
-- 現在の実装は `resprocessing/setvar` に正の得点を設定しておらず、正答条件の構造は出力されるが採点ロジックは本文の意図をまだ完全には満たしていない。
+- 現在の実装は `single-choice`, `true-false`, `numeric`, `cloze`, `matching` には既定配点を出力するが、`multiple-choice` の配点ロジックは保留で `setvar` が `0.0` のままである。
 - 現在の manifest schema 検証は `xmllint` に加えてローカルに `xml.xsd` が存在する既知パスを必要とする。
 - 現在の実装は未対応の Pandoc block / inline を受け付けず、早期に入力検証エラーとする。
 

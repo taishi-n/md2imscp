@@ -911,7 +911,6 @@ def select_sections(
 
 def parse_sections(blocks: list[dict[str, Any]]) -> list[RawSection]:
     sections: list[RawSection] = []
-    preamble_blocks: list[dict[str, Any]] = []
     current_section: RawSection | None = None
     current_item: RawItem | None = None
     section_counter = 0
@@ -949,11 +948,10 @@ def parse_sections(blocks: list[dict[str, Any]]) -> list[RawSection]:
                 current_section = RawSection(
                     ident_hint=attr_id or f"section-{section_counter + 1:02d}",
                     title=title,
-                    description_blocks=preamble_blocks if not sections and current_section is None else [],
+                    description_blocks=[],
                     items=[],
                     section_index=section_counter + 1,
                 )
-                preamble_blocks = []
                 section_counter = current_section.section_index
                 item_counter = 0
                 continue
@@ -961,8 +959,6 @@ def parse_sections(blocks: list[dict[str, Any]]) -> list[RawSection]:
             if level == 3:
                 if current_section is None:
                     current_section = start_default_section()
-                    current_section.description_blocks = preamble_blocks
-                    preamble_blocks = []
                 flush_item()
                 item_counter += 1
                 current_item = RawItem(
@@ -979,8 +975,6 @@ def parse_sections(blocks: list[dict[str, Any]]) -> list[RawSection]:
             current_item.blocks.append(block)
         elif current_section is not None:
             current_section.description_blocks.append(block)
-        else:
-            preamble_blocks.append(block)
 
     flush_item()
     if current_section is not None:

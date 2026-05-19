@@ -294,5 +294,31 @@ class BuildPackageTests(unittest.TestCase):
                 self.assertIn('<setvar action="Add" varname="SCORE">1</setvar>', xml_text)
                 self.assertIn('<setvar action="Add" varname="SCORE">0.5</setvar>', xml_text)
 
+    def test_preamble_blocks_after_front_matter_are_not_emitted(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Preamble Omitted
+            ---
+
+            この段落は section の説明に出てはいけない。
+
+            ### 問題 1 {type="true-false" answer="true"}
+            設問本文。
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "preamble.md"
+            output = temp_dir / "preamble.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            build_package(source, output, run_validation=True)
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("preamble.xml").decode("utf-8")
+                self.assertIn("設問本文。", xml_text)
+                self.assertNotIn("この段落は section の説明に出てはいけない。", xml_text)
+
 if __name__ == "__main__":
     unittest.main()
