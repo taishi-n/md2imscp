@@ -373,5 +373,36 @@ class BuildPackageTests(unittest.TestCase):
             with self.assertRaises(InputValidationError):
                 build_package(source, output, run_validation=True)
 
+    def test_assessment_description_front_matter_renders_to_assessment_presentation_material(self) -> None:
+        markdown = textwrap.dedent(
+            """\
+            ---
+            title: Assessment Description
+            description: |
+              **このテストに関する説明です**
+
+              `code` も使えます。
+            ---
+
+            ### 問題 1 {type="true-false" answer="true"}
+            設問本文。
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            source = temp_dir / "assessment-description.md"
+            output = temp_dir / "assessment-description.zip"
+            source.write_text(markdown, encoding="utf-8")
+
+            build_package(source, output, run_validation=True)
+
+            with zipfile.ZipFile(output) as archive:
+                xml_text = archive.read("assessment-description.xml").decode("utf-8")
+                self.assertIn(
+                    "<![CDATA[<p><strong>このテストに関する説明です</strong></p>\n<p><code>code</code> も使えます。</p>]]>",
+                    xml_text,
+                )
+                self.assertIn("設問本文。", xml_text)
+
 if __name__ == "__main__":
     unittest.main()

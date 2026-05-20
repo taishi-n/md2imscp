@@ -154,6 +154,10 @@ Python パッケージ依存:
 ```md
 ---
 title: 最小サンプル
+description: |
+  **小テストの説明**です。
+
+  `md2imscp` はこの内容を assessment の説明として出力します。
 ---
 
 ### 問題 1 {type="single-choice"}

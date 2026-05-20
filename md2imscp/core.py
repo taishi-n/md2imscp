@@ -295,6 +295,7 @@ class Assessment:
     title: str
     stem: str
     duration: str
+    description_html: str
     metadata: dict[str, str]
     sections: list[Section]
     assets: list[AssetRecord]
@@ -598,11 +599,13 @@ def build_package(
     else:
         pandoc_doc = run_pandoc_json(pandoc_path)
 
-    meta = parse_meta_map(pandoc_doc["meta"])
+    meta_source = pandoc_doc["meta"]
+    meta = parse_meta_map(meta_source)
     resolved_stem = sanitize_stem(stem or stringify_scalar(meta.get("stem")) or output_path.stem)
     assessment = build_assessment_model(
         source_path=source_path,
         meta=meta,
+        meta_source=meta_source,
         blocks=pandoc_doc["blocks"],
         stem=resolved_stem,
         asset_root=asset_root,
@@ -808,6 +811,7 @@ def find_local_xml_schema() -> str | None:
 def build_assessment_model(
     source_path: Path,
     meta: dict[str, Any],
+    meta_source: dict[str, Any],
     blocks: list[dict[str, Any]],
     stem: str,
     asset_root: Path | None,
@@ -823,6 +827,7 @@ def build_assessment_model(
     allow_raw_html = parse_bool(meta.get("allow_raw_html"), default=False)
     asset_manager = AssetManager(source_path=source_path, asset_root=asset_root)
     renderer = HtmlRenderer(asset_manager=asset_manager, allow_raw_html=allow_raw_html)
+    assessment_description_html = render_assessment_description(meta_source.get("description"), renderer)
 
     sections = parse_sections(blocks)
     if not sections:
@@ -838,7 +843,7 @@ def build_assessment_model(
     for raw_section in sections:
         if not raw_section.items:
             raise InputValidationError(f"section has no items: {raw_section.title}")
-        description_html = renderer.render_blocks(raw_section.description_blocks)
+        section_description_html = renderer.render_blocks(raw_section.description_blocks)
         items = [
             build_item(
                 raw_item,
@@ -852,7 +857,7 @@ def build_assessment_model(
             Section(
                 ident=sanitize_ident(raw_section.ident_hint),
                 title=raw_section.title,
-                description_html=description_html,
+                description_html=section_description_html,
                 items=items,
             )
         )
@@ -867,6 +872,7 @@ def build_assessment_model(
         title=title,
         stem=stem,
         duration=duration,
+        description_html=assessment_description_html,
         metadata=metadata,
         sections=rendered_sections,
         assets=asset_manager.records(),
@@ -1381,7 +1387,13 @@ def build_assessment_xml(assessment: Assessment) -> bytes:
         {"feedbackswitch": "Yes", "hintswitch": "Yes", "solutionswitch": "Yes", "view": "All"},
     )
     add_empty_rubric(assessment_el)
-    add_flow_mat_container(assessment_el, "presentation_material", "", serializer, include_blank_image=False)
+    add_flow_mat_container(
+        assessment_el,
+        "presentation_material",
+        assessment.description_html,
+        serializer,
+        include_blank_image=False,
+    )
     feedback = ET.SubElement(assessment_el, "assessfeedback", {"ident": "Feedback", "title": "Feedback", "view": "All"})
     flow_mat = ET.SubElement(feedback, "flow_mat", {"class": "Block"})
     add_text_material(flow_mat, "", serializer)
@@ -1701,8 +1713,39 @@ def run_pandoc_json(input_path: Path) -> dict[str, Any]:
     return json.loads(proc.stdout)
 
 
+def run_pandoc_json_text(markdown_text: str) -> dict[str, Any]:
+    cmd = ["pandoc", "-f", "markdown", "-t", "json"]
+    try:
+        proc = subprocess.run(cmd, input=markdown_text, capture_output=True, text=True, check=False)
+    except FileNotFoundError as exc:
+        raise BuildError("pandoc is required but was not found") from exc
+
+    if proc.returncode != 0:
+        message = proc.stderr.strip() or proc.stdout.strip() or "pandoc failed"
+        raise BuildError(message)
+    return json.loads(proc.stdout)
+
+
 def parse_meta_map(meta: dict[str, Any]) -> dict[str, Any]:
     return {key: parse_meta_value(value) for key, value in meta.items()}
+
+
+def render_assessment_description(meta_value: dict[str, Any] | None, renderer: HtmlRenderer) -> str:
+    if meta_value is None:
+        return ""
+    return renderer.render_blocks(meta_value_to_blocks(meta_value))
+
+
+def meta_value_to_blocks(meta_value: dict[str, Any]) -> list[dict[str, Any]]:
+    value_type = meta_value["t"]
+    content = meta_value.get("c")
+    if value_type == "MetaBlocks":
+        return copy.deepcopy(content)
+    if value_type == "MetaInlines":
+        return [{"t": "Para", "c": copy.deepcopy(content)}]
+    if value_type == "MetaString":
+        return run_pandoc_json_text(content)["blocks"]
+    raise InputValidationError(f"front matter description must be markdown text, not {value_type}")
 
 
 def parse_meta_value(value: dict[str, Any]) -> Any:

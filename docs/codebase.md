@@ -63,6 +63,8 @@
 
 Markdown は直接文字列処理せず、Pandoc AST から読み取ります。
 
+assessment レベルの `description` だけは front matter の生 metadata AST から HTML 化し、assessment 直下の `presentation_material` に入れます。
+
 ### section / item の切り出し
 
 `parse_sections(...)` が見出しレベルで文書を切ります。

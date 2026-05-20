@@ -25,6 +25,7 @@ section がない場合は `Default` が自動生成されます。
   - 必須
 - `author`
 - `creator`
+- `description`
 - `open_at`
 - `due_at`
 - `time_limit`
@@ -43,6 +44,18 @@ section がない場合は `Default` が自動生成されます。
 - `ident`
 
 `open_at` と `due_at` は ISO 8601 文字列を想定し、タイムゾーンが省略された場合は `timezone` を使って補います。
+
+`description` は assessment 全体の説明として `presentation_material` に出力されます。Markdown を書けます。
+
+```yaml
+---
+title: サンプル
+description: |
+  **このテストに関する説明です**
+
+  `code` も使えます。
+---
+```
 
 ## item 属性
 
